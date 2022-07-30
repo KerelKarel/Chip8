@@ -6,6 +6,7 @@
 #include "memory.hpp"
 #include "cpu.hpp"
 #include <fstream>
+#include <vector>
 
 
 class Chip8{
@@ -14,9 +15,10 @@ class Chip8{
     void handle_events();
     void clean();
 
+    void update_timers();
     void update();
     void render();
-    void load_file(std::ifstream& ist);    
+    void load_file(std::ifstream& ist);
 
     bool running(){
         return is_running;
@@ -32,6 +34,7 @@ class Chip8{
     bool is_running;
     SDL_Window *window;
     SDL_Renderer *renderer;
+    std::vector<uint8_t> keys_pressed;
 };
 
 #endif

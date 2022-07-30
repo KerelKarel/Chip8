@@ -2,7 +2,10 @@
 
 const uint8_t flags[8] = {128, 64, 32, 16, 8, 4, 2, 1};
 
-void Cpu::decode_and_execute(uint16_t instruction, Memory& memory, Display& display){
+
+
+
+void Cpu::decode_and_execute(uint16_t instruction, Memory& memory, Display& display, uint8_t& delay_timer, uint8_t& sound_timer, std::vector<uint8_t> keys_pressed){
     uint8_t instruction_type = (instruction&0xF000)>>12;
     uint8_t X = (instruction&0x0F00)>>8;
     uint8_t Y = (instruction&0x00F0)>>4;
@@ -106,6 +109,7 @@ void Cpu::decode_and_execute(uint16_t instruction, Memory& memory, Display& disp
         case(0xC): // Set Vx = random byte AND kk.
         //std::cout << "randomness check" << std::endl;
         memory.Vs[X] = rand() & NN;
+        std::cout << "random number " << memory.Vs[X] << std::endl;
         break;
         case(0xD):{// Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
         uint8_t x = memory.Vs[X] % 64;
@@ -114,7 +118,7 @@ void Cpu::decode_and_execute(uint16_t instruction, Memory& memory, Display& disp
         for(int i = 0; i < N; i++){
             uint8_t flip_line = memory.RAM[memory.IR+i];
             //std::cout << std::hex << (int) flip_line << std::endl;
-            for(int j = 0; j < 8; j++){//Bug
+            for(int j = 0; j < 8; j++){
                 int flag_index = j%8;
                 bool flip_line_pixel = flags[flag_index]&flip_line;
                 int current_display_index = (x+j)%8;
@@ -133,34 +137,56 @@ void Cpu::decode_and_execute(uint16_t instruction, Memory& memory, Display& disp
                 
                 display.screen[(y+i)%32][((x+j)%64)/8] = new_display;
             }
-            std::cout << std::endl;
+            //std::cout << std::endl;
         }
 
         break;
         }
-        case(0xE):
-        switch(NN){
-            case(0x9E):// Skip next instruction if key with the value of Vx is pressed. TODO
-
-            break;
-            case(0xA1):// Skip next instruction if key with the value of Vx is not pressed. TODO
-
-            break;
-        }
+        case(0xE):{
+            //std::cout << (int) memory.Vs[X] << " ";
+            switch(NN){
+                case(0x9E):// Skip next instruction if key with the value of Vx is pressed.   
+                for(uint8_t key_pressed : keys_pressed){
+                    if(key_pressed==memory.Vs[X]){
+                        memory.PC+=2;
+                        break;
+                    }
+                }
+                break;
+                case(0xA1):// Skip next instruction if key with the value of Vx is not pressed.
+                bool found = false;
+                for(uint8_t key_pressed : keys_pressed){
+                    if(key_pressed==memory.Vs[X]){
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found){
+                    memory.PC+=2;
+                }
+                break;
+            }
         break;
+        }
         case(0xF):
             switch(NN){
-                case(0x07):// Set Vx = delay timer value. TODO
-                
+                case(0x07):// Set Vx = delay timer value.
+                memory.Vs[X] = delay_timer;
                 break;
-                case(0x0A):// Wait for a key press, store the value of the key in Vx. TODO
-                
+                case(0x0A):{// Wait for a key press, store the value of the key in Vx.
+                if(keys_pressed.size()){
+                    memory.Vs[X] = keys_pressed[0];
+                }
+                else{
+                    memory.PC-=2;
+                }
                 break;
-                case(0x15):// Set delay timer = Vx. TODO
-                
+                }
+                case(0x15):// Set delay timer = Vx.
+                delay_timer = memory.Vs[X];
                 break;
-                case(0x18):// Set sound timer = Vx. TODO
-                
+                case(0x18):// Set sound timer = Vx.
+                sound_timer = memory.Vs[X];
                 break;
                 case(0x1E):// Set I = I + Vx.
                 memory.IR += memory.Vs[X];
